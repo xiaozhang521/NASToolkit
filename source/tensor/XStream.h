@@ -92,8 +92,8 @@ public:
     void StreamSynchronize();
 
     /* thread synchronize */
-    static 
-    void ThreadSynchronize();
+    /*static 
+    void ThreadSynchronize();*/
 
     /* device synchronize */
     static 

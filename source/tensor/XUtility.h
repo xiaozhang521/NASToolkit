@@ -65,7 +65,7 @@ extern void XMemCopyAsync(void * t, int devIDT, const void * s, int devIDS, size
 extern void XMemCopyAsync(void * t, int devIDT, const void * s, int devIDS, size_t size, void * stream, int streamDevID);
 #endif
 
-extern void ResetGPUDevices();
+//extern void ResetGPUDevices();
 
 } // namespace nts(NiuTrans.Tensor)
 

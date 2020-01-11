@@ -27,6 +27,7 @@
 #include "./tensor/test/Test.h"
 #include "./sample/fnnlm/FNNLM.h"
 #include "./sample/transformer/Transformer.h"
+#include "./sample/NAS/NAS.h"
 
 //#define CRTDBG_MAP_ALLOC
 //#include <stdlib.h>
@@ -39,6 +40,7 @@ void SumDimTest();
 using namespace nts;
 using namespace fnnlm;
 using namespace transformer;
+using namespace nas;
 
 int main( int argc, const char ** argv )
 {
@@ -51,6 +53,8 @@ int main( int argc, const char ** argv )
         FNNLMMain(argc - 1, argv + 1);
     else if(argc > 1 && !strcmp(argv[1], "-t2t"))
         TransformerMain(argc - 1, argv + 1);
+    else if (argc > 1 && !strcmp(argv[1], "-nas"))
+        NASMain(argc - 1, argv + 1);
     else{
         fprintf(stderr, "Thanks for using NiuTrans.Network! This is a library for building\n");
         fprintf(stderr, "neural networks in an easy way. \n\n");

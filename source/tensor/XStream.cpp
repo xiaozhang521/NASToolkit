@@ -144,12 +144,12 @@ void XStream::StreamSynchronize()
 #endif
 }
 
-void XStream::ThreadSynchronize()
+/*void XStream::ThreadSynchronize()
 {
 #ifdef USE_CUDA
     cudaThreadSynchronize();
 #endif
-}
+}*/
 
 void XStream::DeviceSynchronize(int devID)
 {

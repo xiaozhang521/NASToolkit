@@ -831,7 +831,7 @@ int CompXFloat(const void * a, const void * b)
 
 /* reset cleans up all runtime-related resources accociated with the GPUs available 
    for the current process.*/
-void ResetGPUDevices()
+/*void ResetGPUDevices()
 {
 #ifdef USE_CUDA
 
@@ -844,8 +844,8 @@ void ResetGPUDevices()
     for (int i = 0; i < devNum; i++){
         cudaSetDevice(i);
         cudaDeviceReset();
-    }*/
+    }
 #endif
-}
+}*/
 
 } // namespace nts(NiuTrans.Tensor)
