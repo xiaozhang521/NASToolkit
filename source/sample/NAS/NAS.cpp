@@ -39,11 +39,6 @@ namespace nas{
 
 void convert2Id()
 {
-
-}
-
-int NASMain(int argc, const char** argv)
-{
     char filePath[100] = "D:/Work/NASToolkit/data/train.txt";
     //char filePath[100] = "D:/Work/NASToolkit/data/test1.txt";
     FILE* fp = fopen(filePath, "r");
@@ -52,18 +47,16 @@ int NASMain(int argc, const char** argv)
     if (fp)
     {
         char sentence[10000];
-        char stopFlag[6] = "<eos>"; 
+        char stopFlag[6] = "<eos>";
         //while (!feof(fp))
-        while(NULL != fgets(sentence, sizeof(sentence), fp))
+        while (NULL != fgets(sentence, sizeof(sentence), fp))
         {
             //fgets(sentence, 10000, fp);
-            if (sentence[0]==' '&&strlen(sentence) == 1)
-            //    printf("runhere");
-            //printf("%d", strlen(sentence));
+            if (sentence[0] == ' ' && strlen(sentence) == 1)
                 continue;
             int startIndex = 0;
             char word[100];
-            while(sentence[startIndex] == ' ')
+            while (sentence[startIndex] == ' ')
                 startIndex++;
             int length = strlen(sentence);
 
@@ -77,9 +70,9 @@ int NASMain(int argc, const char** argv)
             IntList* sentenceId = new IntList();
             for (int i = startIndex; i < length; ++i)
             {
-                if (sentence[i] == ' ' || i ==  length - 1)
+                if (sentence[i] == ' ' || i == length - 1)
                 {
-                    memcpy( word, sentence + startIndex, i - startIndex);
+                    memcpy(word, sentence + startIndex, i - startIndex);
                     word[i - startIndex] = '\0';
                     startIndex = i + 1;
                     int VSize = dict.count;
@@ -88,7 +81,7 @@ int NASMain(int argc, const char** argv)
                     for (int j = 0; j < VSize; ++j)
                     {
                         //printf("%s %s", dict.Get(j), word);
-                        if (!strcmp(dict.Get(j),word))
+                        if (!strcmp(dict.Get(j), word))
                         {
                             sentenceId->Add(j);
                             flag = false;
@@ -107,7 +100,7 @@ int NASMain(int argc, const char** argv)
             }
             trainSents.Add(sentenceId);
         }
-        /*char fileOutPath[100] = "D:/Work/NASToolkit/data/trainId.txt";
+        char fileOutPath[100] = "D:/Work/NASToolkit/data/trainId.txt";
         FILE* fout = fopen(fileOutPath, "w");
         for (int i = 0; i < trainSents.count; ++i)
         {
@@ -117,9 +110,9 @@ int NASMain(int argc, const char** argv)
                 fprintf(fout, " %d", sentenceId->GetItem(j));
             }
             fputc('\n', fout);
-        }*/
+        }
         //printf("%c|\n", sentence[0]);
-        char fileOutPath[100] = "D:/Work/NASToolkit/data/dict.txt";
+        /*char fileOutPath[100] = "D:/Work/NASToolkit/data/dict.txt";
         FILE* fout = fopen(fileOutPath, "w");
         for (int i = 0; i < dict.count; ++i)
         {
@@ -128,13 +121,75 @@ int NASMain(int argc, const char** argv)
             fputc('\n', fout);
         }
         fclose(fp);
-        fclose(fout);
+        fclose(fout);*/
     }
     else
     {
         printf("file open wrong \n");
     }
-    
+}
+
+void readDict(StrList& dict)
+{
+    char fileDictPath[100] = "D:/Work/NASToolkit/data/dict.txt";
+    FILE* fp = fopen(fileDictPath, "r");
+    char word[100];
+    while (NULL != fgets(word, sizeof(word), fp))
+    {
+        char* dictWord = new char[strlen(word) + 1];
+        memcpy(dictWord, word, strlen(word) + 1);
+        dict.Add(dictWord);
+    }
+    fclose(fp);
+
+}
+ 
+void Init(RNNModel& model)
+{
+    /* create embedding parameter matrix: vSize * eSize */
+    InitModelTensor2D(model.embeddingW, model.vSize, model.eSize, model);
+
+
+    InitModelTensor2D(model.hiddenW[i], (model.n - 1) * model.eSize, model.hSize, model);
+
+    /* create the output layer parameter matrix and bias term */
+    int iSize = model.hDepth == 0 ? (model.n - 1) * model.eSize : model.hSize;
+    InitModelTensor2D(model.outputW, iSize, model.vSize, model);
+    InitModelTensor1D(model.outputB, model.vSize, model);
+    model.outputW.SetVarFlag();
+    model.outputB.SetVarFlag();
+
+    /* then, we initialize model parameters using a uniform distribution in range
+       of [-minmax, minmax] */
+    model.embeddingW.SetDataRand(-minmax, minmax);
+    model.outputW.SetDataRand(-minmax, minmax);
+
+    /* all bias terms are set to zero */
+    model.outputB.SetZeroAll();
+    for (int i = 0; i < model.hDepth; i++)
+        model.hiddenB[i].SetZeroAll();
+}
+
+int NASMain(int argc, const char** argv)
+{
+    //convert2Id();
+    StrList dict;
+    readDict(dict);
+
+    printf("%d\n", dict.count);
+    RNNModel model;
+    model.embeddingW = dict.count;
+    model.hSize = 128;
+
+    char filePath[100] = "D:/Work/NASToolkit/data/trainId.txt";
+    FILE* fp2 = fopen(filePath, "r");
+    char sentence[10000];
+    int count = 0;
+    while (NULL != fgets(sentence, sizeof(sentence), fp2))
+    {
+        count++;
+    }
+    printf("%d\n", count);
     return 0;
 }
 

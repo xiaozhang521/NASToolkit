@@ -49,13 +49,9 @@ namespace nas
     /* an n-gram = a sequence of n words
        words[0..n-2] is the history, and
        words[n-1] is the word for prediction. */
-    struct NGram
-    {
-        int words[MAX_N_GRAM];
-    };
 
     /* fnn model */
-    struct FNNModel
+    struct RNNModel
     {
         /* word embedding */
         XTensor embeddingW;
@@ -65,10 +61,7 @@ namespace nas
            where x is the input, y is the output, w is
            the tranformation (parameter) matrix, b is
            the bias and f() is the activation function. */
-        XTensor hiddenW[MAX_HIDDEN_NUM];
-
-        /* bias of each hidden layer */
-        XTensor hiddenB[MAX_HIDDEN_NUM];
+        XTensor hiddenW;
 
         /* parameter matrix of the output layer */
         XTensor outputW;
@@ -81,9 +74,6 @@ namespace nas
 
         /* embedding size */
         int eSize;
-
-        /* number of hidden layers */
-        int hDepth;
 
         /* hidden layer size */
         int hSize;
@@ -100,12 +90,12 @@ namespace nas
         /* memory pool */
         XMem* mem;
 
-        FNNModel() { n = -1; vSize = -1; hDepth = 0; devID = -1; mem = NULL; };
-        ~FNNModel() { delete mem; };
+        RNNModel() { n = -1; vSize = -1; hDepth = 0; devID = -1; mem = NULL; };
+        ~RNNModel() { delete mem; };
     };
 
     /* the network built on the fly */
-    struct FNNNet
+    struct RNNNet
     {
         /* embedding result of the previous n - 1 words */
         XTensor embeddings[MAX_N_GRAM];
