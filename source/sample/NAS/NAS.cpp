@@ -22,7 +22,7 @@
   * "A Neural Probabilistic Language Model" by Bengio et al.
   * Journal of Machine Learning Research 3 (2003) 1137-1155
   *
-  * $Created by: XIAO Tong (xiaotong@mail.neu.edu.cn) 2018-06-22
+  * $Created by: ZHANG Yuhao (zhangyuhao@stumail.neu.edu.cn) 2020-01-14
   */
 
 #include <math.h>
@@ -33,9 +33,16 @@
 #include "../../tensor/XList.h"
 #include "../../tensor/function/FHeader.h"
 #include "../../network/XNet.h"
-
+#include <vector>
+#include <cuda_runtime.h>
 using namespace nts;
+typedef std::vector<int> vec;
+typedef std::vector<vec> vec2D;
 namespace nas{
+
+float minmax = -0.01;
+int batchSize = 256;
+int bptt = 35;
 
 void convert2Id()
 {
@@ -92,8 +99,8 @@ void convert2Id()
                     {
                         char* dictWord = new char[strlen(word) + 1];
                         memcpy(dictWord, word, strlen(word) + 1);
-                        dict.Add(dictWord);
                         sentenceId->Add(dict.count);
+                        dict.Add(dictWord);
                         //printf("%s\n", dict[0]);
                     }
                 }
@@ -102,6 +109,7 @@ void convert2Id()
         }
         char fileOutPath[100] = "D:/Work/NASToolkit/data/trainId.txt";
         FILE* fout = fopen(fileOutPath, "w");
+        printf("%d", trainSents.count);
         for (int i = 0; i < trainSents.count; ++i)
         {
             IntList* sentenceId = (IntList*)trainSents.GetItem(i);
@@ -147,27 +155,41 @@ void readDict(StrList& dict)
 void Init(RNNModel& model)
 {
     /* create embedding parameter matrix: vSize * eSize */
-    InitModelTensor2D(model.embeddingW, model.vSize, model.eSize, model);
+    InitTensor2D(&model.embeddingW, model.vSize, model.eSize);
 
-
-    InitModelTensor2D(model.hiddenW[i], (model.n - 1) * model.eSize, model.hSize, model);
+    InitTensor2D(&model.hiddenW, model.eSize + model.hSize, model.hSize);
 
     /* create the output layer parameter matrix and bias term */
-    int iSize = model.hDepth == 0 ? (model.n - 1) * model.eSize : model.hSize;
-    InitModelTensor2D(model.outputW, iSize, model.vSize, model);
-    InitModelTensor1D(model.outputB, model.vSize, model);
+    InitTensor2D(&model.outputW, model.hSize, model.vSize);
+    InitTensor1D(&model.outputB, model.vSize);
     model.outputW.SetVarFlag();
     model.outputB.SetVarFlag();
 
     /* then, we initialize model parameters using a uniform distribution in range
        of [-minmax, minmax] */
     model.embeddingW.SetDataRand(-minmax, minmax);
+    model.hiddenW.SetDataRand(-minmax, minmax);
     model.outputW.SetDataRand(-minmax, minmax);
 
-    /* all bias terms are set to zero */
+    /* all   terms are set to zero */
     model.outputB.SetZeroAll();
-    for (int i = 0; i < model.hDepth; i++)
-        model.hiddenB[i].SetZeroAll();
+}
+
+void MakeTrainBatch(XTensor trainData, int index, int seqLength,XTensor &data, XTensor &targets)
+{
+    int minLen = min(seqLength, trainData.dimSize[0] - 1 - index);
+    data = SelectRange(trainData, 0, index, index + minLen);
+    targets = SelectRange(trainData, 0, index + 1, index + 1 + minLen);
+}
+
+void Train(XTensor trainData, RNNModel& model)
+{
+    for (int i = 0; i < trainData.dimSize[0] - 1 - 1; ++i)
+    {
+        XTensor batchTrain;
+        XTensor batchTarget;
+        MakeTrainBatch(trainData, i,model.bpttLength, batchTrain, batchTarget);
+    }
 }
 
 int NASMain(int argc, const char** argv)
@@ -178,18 +200,66 @@ int NASMain(int argc, const char** argv)
 
     printf("%d\n", dict.count);
     RNNModel model;
-    model.embeddingW = dict.count;
+    model.vSize = dict.count;
+    model.eSize = 128;
     model.hSize = 128;
-
+    model.bpttLength = bptt;
+    Init(model);
     char filePath[100] = "D:/Work/NASToolkit/data/trainId.txt";
     FILE* fp2 = fopen(filePath, "r");
     char sentence[10000];
-    int count = 0;
+    vec vecData;
     while (NULL != fgets(sentence, sizeof(sentence), fp2))
     {
-        count++;
+        int length = strlen(sentence) - 1;
+        int startIndex = 0;
+        while (sentence[startIndex] == ' ')
+            startIndex++;
+        int wordId = 0;
+        //vec *tmp = new vec();
+        for (int i = startIndex; i < length ; ++i)
+        {
+            if (sentence[i] == ' ' || i == length - 1)
+            {
+                if (i == length - 1)
+                {
+                    wordId = (sentence[i] - '0') + 10 * wordId;
+                }
+                vecData.push_back(wordId);
+                wordId = 0;
+            }
+            else
+            {
+                wordId = (sentence[i] - '0') + 10 * wordId;
+            }
+        }
+        /*for (vec::iterator it2 = tmp->begin(); it2 != tmp->end(); ++it2)
+        {
+            printf("%d ", *it2);
+        }
+        printf("\n");*/
+        //trainData.push_back(*tmp);
     }
-    printf("%d\n", count);
+    //for (vec2D::iterator it1 = trainData.begin(); it1 != trainData.end(); ++it1)
+    /*vec2D::iterator it1 = trainData.end(); --it1;
+    {
+        vec tmp = *it1;
+        for (vec::iterator it2 = tmp.begin(); it2 != tmp.end(); ++it2)
+        {
+            printf("%d ", *it2);
+        }
+        printf("\n");
+    }*/
+    XTensor trainData;
+    InitTensor1D(&trainData, vecData.size(),X_INT);
+    trainData.SetData(&vecData[0], trainData.unitNum);
+    int nbatch = trainData.unitNum / batchSize;
+    /* not very clear to do this*/
+    trainData = SelectRange(trainData, 0, 0, nbatch * batchSize);
+    trainData.Reshape(batchSize, nbatch);
+    trainData = Transpose(trainData, 0, 1);
+    Train(trainData, model);
+
     return 0;
 }
 

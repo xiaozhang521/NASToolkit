@@ -22,7 +22,7 @@
   * "A Neural Probabilistic Language Model" by Bengio et al.
   * Journal of Machine Learning Research 3 (2003) 1137¨C1155
   *
-  * $Created by: XIAO Tong (xiaotong@mail.neu.edu.cn) 2018-06-22
+  * $Created by: ZHANG Yuhao (zhangyuhao@stumail.neu.edu.cn) 2020-01-14
   * Today I was awarded as the most popular teacher in our college.
   * It was the great honour for me!!!
   */
@@ -84,13 +84,15 @@ namespace nas
         /* id of the device for running the model */
         int devID;
 
+        int bpttLength;
+
         /* indicates whether we use memory pool */
         bool useMemPool;
 
         /* memory pool */
         XMem* mem;
 
-        RNNModel() { n = -1; vSize = -1; hDepth = 0; devID = -1; mem = NULL; };
+        RNNModel() { n = -1; vSize = -1; devID = -1; mem = NULL; };
         ~RNNModel() { delete mem; };
     };
 
