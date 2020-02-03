@@ -46,25 +46,27 @@ namespace nas
 #define MAX_N_GRAM 8
 #define MAX_HIDDEN_NUM 8
 
+    struct DARTSCell
+    {
+        DARTSCell() {};
+        ~DARTSCell() {};
+    };
+
+
     /* an n-gram = a sequence of n words
        words[0..n-2] is the history, and
        words[n-1] is the word for prediction. */
 
-    /* fnn model */
-    struct RNNModel
+    /* rnn search model */
+    struct RNNSearchModel
     {
         /* word embedding */
         XTensor embeddingW;
 
-        /* parameter matrix of each hidden layer
-           hidden layer: y = f(x * w + b)
-           where x is the input, y is the output, w is
-           the tranformation (parameter) matrix, b is
-           the bias and f() is the activation function. */
-        XTensor hiddenW;
-
         /* parameter matrix of the output layer */
         XTensor outputW;
+
+        DARTSCell rnn;
 
         /* bias of the output layer */
         XTensor outputB;
@@ -92,31 +94,34 @@ namespace nas
         /* memory pool */
         XMem* mem;
 
-        RNNModel() { n = -1; vSize = -1; devID = -1; mem = NULL; };
-        ~RNNModel() { delete mem; };
+        RNNSearchModel() { n = -1; vSize = -1; devID = -1; mem = NULL; };
+        ~RNNSearchModel() { delete mem; };
     };
 
-    /* the network built on the fly */
-    struct RNNNet
-    {
-        /* embedding result of the previous n - 1 words */
-        XTensor embeddings[MAX_N_GRAM];
+ 
+    ///* the network built on the fly */
+    //struct RNNSearchNET
+    //{
+    //    XTensor transInput;
 
-        /* concatenation of embeddings */
-        XTensor embeddingCat;
+    //    /* embedding result of the previous n - 1 words */
+    //    XTensor embeddings[MAX_N_GRAM];
 
-        /* output of the hidden layers */
-        XTensor hiddens[MAX_HIDDEN_NUM];
+    //    /* concatenation of embeddings */
+    //    XTensor embeddingCat;
 
-        /* state of the hidden layers (before activation function) */
-        XTensor hiddenStates[MAX_HIDDEN_NUM];
+    //    /* output of the hidden layers */
+    //    XTensor hiddens[MAX_HIDDEN_NUM];
 
-        /* state before softmax */
-        XTensor stateLast;
+    //    /* state of the hidden layers (before activation function) */
+    //    XTensor hiddenStates[MAX_HIDDEN_NUM];
 
-        /* output of the net */
-        XTensor output;
-    };
+    //    /* state before softmax */
+    //    XTensor stateLast;
+
+    //    /* output of the net */
+    //    XTensor output;
+    //};
 
     /* entrance of the program */
     int NASMain(int argc, const char** argv);

@@ -44,9 +44,18 @@ float minmax = -0.01;
 int batchSize = 256;
 int bptt = 35;
 
+void show(XTensor a)
+{
+    for (int i = 0; i < a.order; ++i)
+    {
+        printf("%d ", a.dimSize[i]);
+    }
+    printf("\n");
+}
+
 void convert2Id()
 {
-    char filePath[100] = "D:/Work/NASToolkit/data/train.txt";
+    char filePath[100] = "D:/Work/NAS/data/train.txt";
     //char filePath[100] = "D:/Work/NASToolkit/data/test1.txt";
     FILE* fp = fopen(filePath, "r");
     StrList dict;
@@ -107,7 +116,7 @@ void convert2Id()
             }
             trainSents.Add(sentenceId);
         }
-        char fileOutPath[100] = "D:/Work/NASToolkit/data/trainId.txt";
+        /*char fileOutPath[100] = "D:/Work/NAS/data/trainId.txt";
         FILE* fout = fopen(fileOutPath, "w");
         printf("%d", trainSents.count);
         for (int i = 0; i < trainSents.count; ++i)
@@ -118,9 +127,9 @@ void convert2Id()
                 fprintf(fout, " %d", sentenceId->GetItem(j));
             }
             fputc('\n', fout);
-        }
+        }*/
         //printf("%c|\n", sentence[0]);
-        /*char fileOutPath[100] = "D:/Work/NASToolkit/data/dict.txt";
+        char fileOutPath[100] = "D:/Work/NAS/data/dict.txt";
         FILE* fout = fopen(fileOutPath, "w");
         for (int i = 0; i < dict.count; ++i)
         {
@@ -129,7 +138,7 @@ void convert2Id()
             fputc('\n', fout);
         }
         fclose(fp);
-        fclose(fout);*/
+        fclose(fout);
     }
     else
     {
@@ -139,7 +148,7 @@ void convert2Id()
 
 void readDict(StrList& dict)
 {
-    char fileDictPath[100] = "D:/Work/NASToolkit/data/dict.txt";
+    char fileDictPath[100] = "D:/Work/NAS/data/dict.txt";
     FILE* fp = fopen(fileDictPath, "r");
     char word[100];
     while (NULL != fgets(word, sizeof(word), fp))
@@ -152,12 +161,11 @@ void readDict(StrList& dict)
 
 }
  
-void Init(RNNModel& model)
+void Init(RNNSearchModel& model)
 {
     /* create embedding parameter matrix: vSize * eSize */
     InitTensor2D(&model.embeddingW, model.vSize, model.eSize);
 
-    InitTensor2D(&model.hiddenW, model.eSize + model.hSize, model.hSize);
 
     /* create the output layer parameter matrix and bias term */
     InitTensor2D(&model.outputW, model.hSize, model.vSize);
@@ -168,7 +176,6 @@ void Init(RNNModel& model)
     /* then, we initialize model parameters using a uniform distribution in range
        of [-minmax, minmax] */
     model.embeddingW.SetDataRand(-minmax, minmax);
-    model.hiddenW.SetDataRand(-minmax, minmax);
     model.outputW.SetDataRand(-minmax, minmax);
 
     /* all   terms are set to zero */
@@ -182,13 +189,24 @@ void MakeTrainBatch(XTensor trainData, int index, int seqLength,XTensor &data, X
     targets = SelectRange(trainData, 0, index + 1, index + 1 + minLen);
 }
 
-void Train(XTensor trainData, RNNModel& model)
+void Forward(XTensor input,XTensor &output, RNNSearchModel &model)
+{
+    XTensor transInput = Transpose(input, 0, 1);
+    show(model.embeddingW);
+    show(transInput);
+    XTensor embeddings = Gather(model.embeddingW, transInput);
+    
+}
+
+void Train(XTensor trainData, RNNSearchModel& model)
 {
     for (int i = 0; i < trainData.dimSize[0] - 1 - 1; ++i)
     {
         XTensor batchTrain;
         XTensor batchTarget;
-        MakeTrainBatch(trainData, i,model.bpttLength, batchTrain, batchTarget);
+        XTensor output;
+        MakeTrainBatch(trainData, i, model.bpttLength, batchTrain, batchTarget);
+        Forward(batchTrain, output, model);
     }
 }
 
@@ -198,14 +216,14 @@ int NASMain(int argc, const char** argv)
     StrList dict;
     readDict(dict);
 
-    printf("%d\n", dict.count);
-    RNNModel model;
+    //printf("%d\n", dict.count);
+    RNNSearchModel model;
     model.vSize = dict.count;
     model.eSize = 128;
     model.hSize = 128;
     model.bpttLength = bptt;
     Init(model);
-    char filePath[100] = "D:/Work/NASToolkit/data/trainId.txt";
+    char filePath[100] = "D:/Work/NAS/data/trainId.txt";
     FILE* fp2 = fopen(filePath, "r");
     char sentence[10000];
     vec vecData;
