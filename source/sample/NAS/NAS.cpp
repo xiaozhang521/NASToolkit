@@ -44,14 +44,7 @@ float minmax = -0.01;
 int batchSize = 256;
 int bptt = 35;
 
-void show(XTensor a)
-{
-    for (int i = 0; i < a.order; ++i)
-    {
-        printf("%d ", a.dimSize[i]);
-    }
-    printf("\n");
-}
+
 
 void convert2Id()
 {
@@ -191,11 +184,13 @@ void MakeTrainBatch(XTensor trainData, int index, int seqLength,XTensor &data, X
 
 void Forward(XTensor input,XTensor &output, RNNSearchModel &model)
 {
-    XTensor transInput = Transpose(input, 0, 1);
-    show(model.embeddingW);
-    show(transInput);
-    XTensor embeddings = Gather(model.embeddingW, transInput);
-    
+    XTensor transInput;
+    XTensor embeddings;
+    XTensor rnnOut;
+    transInput = Transpose(input, 0, 1);
+    embeddings = Gather(model.embeddingW, transInput);
+    RNNForword(embeddings, rnnOut, model.rnn);
+    //show(embeddings);
 }
 
 void Train(XTensor trainData, RNNSearchModel& model)
@@ -219,8 +214,9 @@ int NASMain(int argc, const char** argv)
     //printf("%d\n", dict.count);
     RNNSearchModel model;
     model.vSize = dict.count;
-    model.eSize = 128;
-    model.hSize = 128;
+    model.eSize = 64;
+    model.hSize = 64;
+    model.rnn.hiddenSize = model.hSize;
     model.bpttLength = bptt;
     Init(model);
     char filePath[100] = "D:/Work/NAS/data/trainId.txt";

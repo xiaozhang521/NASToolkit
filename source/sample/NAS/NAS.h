@@ -33,7 +33,7 @@
 #include "../../tensor/XGlobal.h"
 #include "../../tensor/XTensor.h"
 #include "../../tensor/core/CHeader.h"
-
+#include "DARTSCell.h"
 using namespace nts;
 
 namespace nas
@@ -46,11 +46,7 @@ namespace nas
 #define MAX_N_GRAM 8
 #define MAX_HIDDEN_NUM 8
 
-    struct DARTSCell
-    {
-        DARTSCell() {};
-        ~DARTSCell() {};
-    };
+
 
 
     /* an n-gram = a sequence of n words
@@ -94,7 +90,7 @@ namespace nas
         /* memory pool */
         XMem* mem;
 
-        RNNSearchModel() { n = -1; vSize = -1; devID = -1; mem = NULL; };
+        RNNSearchModel() { n = -1; vSize = -1; devID = -1; mem = NULL;};
         ~RNNSearchModel() { delete mem; };
     };
 
