@@ -41,9 +41,9 @@ typedef std::vector<vec> vec2D;
 namespace nas{
 
 float minmax = -0.01;
-int batchSize = 256;
-int bptt = 35;
-
+int batchSize = 8;//256;
+int bptt = 2;//35;
+int nodeNum = 9;
 
 
 void convert2Id()
@@ -157,12 +157,11 @@ void readDict(StrList& dict)
 void Init(RNNSearchModel& model)
 {
     /* create embedding parameter matrix: vSize * eSize */
-    InitTensor2D(&model.embeddingW, model.vSize, model.eSize);
-
+    InitTensor2D(&model.embeddingW, model.vSize, model.eSize, X_FLOAT, model.devID);
 
     /* create the output layer parameter matrix and bias term */
-    InitTensor2D(&model.outputW, model.hSize, model.vSize);
-    InitTensor1D(&model.outputB, model.vSize);
+    InitTensor2D(&model.outputW, model.hSize, model.vSize, X_FLOAT, model.devID);
+    InitTensor1D(&model.outputB, model.vSize, X_FLOAT, model.devID);
     model.outputW.SetVarFlag();
     model.outputB.SetVarFlag();
 
@@ -190,6 +189,8 @@ void Forward(XTensor input,XTensor &output, RNNSearchModel &model)
     transInput = Transpose(input, 0, 1);
     embeddings = Gather(model.embeddingW, transInput);
     RNNForword(embeddings, rnnOut, model.rnn);
+    show(rnnOut);
+    output = MMul(rnnOut, model.outputW) + model.outputB;
     //show(embeddings);
 }
 
@@ -216,9 +217,14 @@ int NASMain(int argc, const char** argv)
     model.vSize = dict.count;
     model.eSize = 64;
     model.hSize = 64;
-    model.rnn.hiddenSize = model.hSize;
+    model.devID = 0;
     model.bpttLength = bptt;
+    model.rnn.hiddenSize = model.hSize;
+    model.rnn.inputSize = model.eSize;
+    model.rnn.devID = model.devID;
+    model.rnn.nodeNum = nodeNum;
     Init(model);
+    InitCell(model.rnn);
     char filePath[100] = "D:/Work/NAS/data/trainId.txt";
     FILE* fp2 = fopen(filePath, "r");
     char sentence[10000];
@@ -265,7 +271,7 @@ int NASMain(int argc, const char** argv)
         printf("\n");
     }*/
     XTensor trainData;
-    InitTensor1D(&trainData, vecData.size(),X_INT);
+    InitTensor1D(&trainData, vecData.size(), X_INT, model.devID);
     trainData.SetData(&vecData[0], trainData.unitNum);
     int nbatch = trainData.unitNum / batchSize;
     /* not very clear to do this*/

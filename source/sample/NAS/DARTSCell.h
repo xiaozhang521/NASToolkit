@@ -4,6 +4,7 @@
 #include "../../tensor/XGlobal.h"
 #include "../../tensor/XTensor.h"
 #include "../../tensor/core/CHeader.h"
+#include "../../tensor/function/FHeader.h"
 #include "../../tensor/XList.h"
 using namespace nts;
 
@@ -16,12 +17,16 @@ namespace nas
 struct DARTSCell
 {
     int hiddenSize;
+    int inputSize;
     int nodeNum;
+    int devID;
+    XTensor W0;
+    TensorList WList;
     DARTSCell() {};
     ~DARTSCell() {};
 };
-
-void RNNForword(XTensor input, XTensor &output, DARTSCell rnn);
+void InitCell(DARTSCell &cell);
+void RNNForword(XTensor input, XTensor &output, DARTSCell &rnn);
 void show(XTensor a);
 
 };
