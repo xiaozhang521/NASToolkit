@@ -95,7 +95,7 @@ XTensor Stack(const TensorList &smalls, int dim)
         if (i < dim)
             dimSize[i] = tensor->GetDim(i);
         else if (i > dim)
-            dimSize[i] = tensor->GetDim(i);
+            dimSize[i] = tensor->GetDim(i - 1);
         else if (i == dim)
             dimSize[i] = count;
     }
@@ -160,7 +160,7 @@ void Stack(const TensorList &smalls, XTensor &t, int dim)
             if (i < dim)
                 dimSize[i] = tensor->GetDim(i);
             else if (i > dim)
-                dimSize[i] = tensor->GetDim(i-1);
+                dimSize[i] = tensor->GetDim(i - 1);
             else if (i == dim)
                 dimSize[i] = count;
         }

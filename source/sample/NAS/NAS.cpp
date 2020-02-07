@@ -41,8 +41,8 @@ typedef std::vector<vec> vec2D;
 namespace nas{
 
 float minmax = -0.01;
-int batchSize = 8;//256;
-int bptt = 2;//35;
+int batchSize = 32;
+int bptt = 35;
 int nodeNum = 9;
 
 
@@ -186,12 +186,12 @@ void Forward(XTensor input,XTensor &output, RNNSearchModel &model)
     XTensor transInput;
     XTensor embeddings;
     XTensor rnnOut;
+    XTensor fnnOut;
     transInput = Transpose(input, 0, 1);
     embeddings = Gather(model.embeddingW, transInput);
     RNNForword(embeddings, rnnOut, model.rnn);
-    show(rnnOut);
-    output = MMul(rnnOut, model.outputW) + model.outputB;
-    //show(embeddings);
+    fnnOut = MMul(rnnOut, model.outputW) + model.outputB;
+    output = LogSoftmax(fnnOut, 2);
 }
 
 void Train(XTensor trainData, RNNSearchModel& model)
@@ -203,6 +203,10 @@ void Train(XTensor trainData, RNNSearchModel& model)
         XTensor output;
         MakeTrainBatch(trainData, i, model.bpttLength, batchTrain, batchTarget);
         Forward(batchTrain, output, model);
+        lossTensor = CrossEntropy(output, batchTarget);
+        show(output);
+        show(batchTarget);
+        
     }
 }
 

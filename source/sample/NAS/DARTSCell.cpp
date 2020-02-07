@@ -89,15 +89,16 @@ void RNNForword(XTensor input, XTensor &output, DARTSCell &rnn)
     XTensor hidden;
     InitTensor2D(&hidden, batchSize, rnn.hiddenSize, input.dataType, input.devID, false);
     hidden.SetZeroAll();
+    //XTensor newHidden[35];
     for (int index = 0; index < senLength; ++index)
     {
         XTensor inputSlice;
-        XTensor newHidden;
+        XTensor *newHidden = NewTensor2D(batchSize, rnn.hiddenSize, X_FLOAT, rnn.devID);
         inputSlice = SelectRange(input, 1, index, index + 1);
         SqueezeMe(inputSlice, 1);
-        Cell(inputSlice, hidden, newHidden, rnn);
-        hiddenList.Add(&newHidden);
-        hidden = newHidden;
+        Cell(inputSlice, hidden, *newHidden, rnn);
+        hiddenList.Add(newHidden);
+        hidden = *newHidden;
         //hiddenList[0]->Dump(stderr);
     }
     /*for (int i = 0; i < hiddenList.count; ++i)
@@ -105,8 +106,7 @@ void RNNForword(XTensor input, XTensor &output, DARTSCell &rnn)
         show(hiddenList[i]);
     }*/
     /* question here */
-    output = Stack(hiddenList, 2);
+    output = Stack(hiddenList, 0);
 }
 
 };
-
