@@ -41,7 +41,7 @@ typedef std::vector<vec> vec2D;
 namespace nas{
 
 float minmax = -0.01;
-int batchSize = 32;
+int batchSize = 100;
 int bptt = 35;
 int nodeNum = 9;
 
@@ -170,7 +170,7 @@ void Init(RNNSearchModel& model)
     model.embeddingW.SetDataRand(-minmax, minmax);
     model.outputW.SetDataRand(-minmax, minmax);
 
-    /* all   terms are set to zero */
+    /* all terms are set to zero */
     model.outputB.SetZeroAll();
 }
 
@@ -201,12 +201,14 @@ void Train(XTensor trainData, RNNSearchModel& model)
         XTensor batchTrain;
         XTensor batchTarget;
         XTensor output;
+        XTensor lossTensor;
+        XTensor gold;
         MakeTrainBatch(trainData, i, model.bpttLength, batchTrain, batchTarget);
         Forward(batchTrain, output, model);
-        lossTensor = CrossEntropy(output, batchTarget);
-        show(output);
-        show(batchTarget);
-        
+        gold = IndexToOnehot(batchTarget, model.vSize, 0);
+        lossTensor = CrossEntropy(output, gold, 2);
+        if ((i + 1) % 100 == 0)
+            printf("%d / %d\n", i + 1, trainData.dimSize[0] - 1);
     }
 }
 
@@ -219,8 +221,8 @@ int NASMain(int argc, const char** argv)
     //printf("%d\n", dict.count);
     RNNSearchModel model;
     model.vSize = dict.count;
-    model.eSize = 64;
-    model.hSize = 64;
+    model.eSize = 32;
+    model.hSize = 32;
     model.devID = 0;
     model.bpttLength = bptt;
     model.rnn.hiddenSize = model.hSize;
@@ -278,7 +280,7 @@ int NASMain(int argc, const char** argv)
     InitTensor1D(&trainData, vecData.size(), X_INT, model.devID);
     trainData.SetData(&vecData[0], trainData.unitNum);
     int nbatch = trainData.unitNum / batchSize;
-    /* not very clear to do this*/
+    /* not very clear to do this */
     trainData = SelectRange(trainData, 0, 0, nbatch * batchSize);
     trainData.Reshape(batchSize, nbatch);
     trainData = Transpose(trainData, 0, 1);

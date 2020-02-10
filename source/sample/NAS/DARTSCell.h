@@ -23,7 +23,11 @@ struct DARTSCell
     XTensor W0;
     TensorList WList;
     DARTSCell() {};
-    ~DARTSCell() {};
+    ~DARTSCell() {
+        /* free memory */
+        for (int i = 0; i < WList.count; ++i)
+            delete WList[i];
+    };
 };
 void InitCell(DARTSCell &cell);
 void RNNForword(XTensor input, XTensor &output, DARTSCell &rnn);

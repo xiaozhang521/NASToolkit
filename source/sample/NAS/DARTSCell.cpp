@@ -39,7 +39,7 @@ void Cell(XTensor input,XTensor hidden, XTensor &newHidden, DARTSCell &rnnCell)
     XTensor ch0;
     XTensor c0;
     XTensor h0;
-    XTensor s0;
+    XTensor *s0 = NewTensor2D(hidden.dimSize[0], hidden.dimSize[1], X_FLOAT, rnnCell.devID);
 
     /* compute init state*/
     xhConcat = Concatenate(input, hidden, 1);
@@ -49,17 +49,17 @@ void Cell(XTensor input,XTensor hidden, XTensor &newHidden, DARTSCell &rnnCell)
     SqueezeMe(c0);
     SqueezeMe(h0);
     /* some question */
-    s0 = Sigmoid(c0) * (HardTanH(h0) - hidden);
-    s0 = s0 + hidden;
+    *s0 = Sigmoid(c0) * (HardTanH(h0) - hidden);
+    *s0 = *s0 + hidden;
     
-    /* hidden sate of echo node */
+    /* hidden sate of each node */
     TensorList stateList;
-    stateList.Add(&s0);
+    stateList.Add(s0);
     XTensor preState;
     XTensor ch;
     XTensor c;
     XTensor h;
-    XTensor s[9];
+    //XTensor s[9];
     XTensor states;
     for (int i = 0; i <  rnnCell.nodeNum - 1; ++i)
     {
@@ -70,12 +70,15 @@ void Cell(XTensor input,XTensor hidden, XTensor &newHidden, DARTSCell &rnnCell)
         SqueezeMe(c);
         SqueezeMe(h);
         /* some question */
-        s[i] = Sigmoid(c) * (HardTanH(h) - preState);
-        s[i] = s[i] + preState;
-        stateList.Add(&s[i]);
+        XTensor *s = NewTensor2D(preState.dimSize[0], preState.dimSize[1], X_FLOAT, rnnCell.devID);
+        *s = Sigmoid(c) * (HardTanH(h) - preState);
+        *s = *s + preState;
+        stateList.Add(s);
     }
-
     states = Stack(stateList, 2);
+    /* free memory */
+    for (int i = 0; i < stateList.count; ++i)
+        delete stateList[i];
     newHidden = ReduceMean(states, 2);
 
 }
@@ -101,12 +104,10 @@ void RNNForword(XTensor input, XTensor &output, DARTSCell &rnn)
         hidden = *newHidden;
         //hiddenList[0]->Dump(stderr);
     }
-    /*for (int i = 0; i < hiddenList.count; ++i)
-    {
-        show(hiddenList[i]);
-    }*/
     /* question here */
     output = Stack(hiddenList, 0);
+    for (int i = 0; i < hiddenList.count; ++i)
+        delete hiddenList[i];
 }
 
 };
