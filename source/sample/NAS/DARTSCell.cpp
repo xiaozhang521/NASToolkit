@@ -18,8 +18,8 @@ void show(XTensor a)
 
 void InitCell(DARTSCell &cell)
 {
-
     InitTensor2D(&(cell.W0), cell.hiddenSize + cell.inputSize, 2 * cell.hiddenSize, X_FLOAT, cell.devID);
+    InitTensor2D(&(cell.alphaWeight), cell.nodeNum, 4, X_FLOAT, cell.devID);
     //show(cell.W0);
     cell.WList.Clear();
     for (int i = 0; i < cell.nodeNum - 1; ++i)
@@ -28,7 +28,34 @@ void InitCell(DARTSCell &cell)
         XTensor *W = NewTensor2D(cell.hiddenSize, 2 * cell.hiddenSize, X_FLOAT, cell.devID);
         //InitTensor2D(&W, cell.hiddenSize, 2 * cell.hiddenSize, X_FLOAT, cell.devID);
         cell.WList.Add(W);
+        
     }
+}
+
+XTensor (*getActivation(char name[]))(const XTensor &)
+{
+    XTensor(*funcPointer)(const XTensor &) = NULL;
+    if (!strcmp(name, "tanh"))
+    {
+        funcPointer = HardTanH;
+    }
+    else if (!strcmp(name,"relu"))
+    {
+        funcPointer = Rectify;
+    }
+    else if (!strcmp(name, "sigmoid"))
+    {
+        funcPointer = Sigmoid;
+    }
+    else if (!strcmp(name, "identity"))
+    {
+        funcPointer = Identity;
+    }
+    else
+    {
+        printf("Don't support active function %s!\n", name);
+    }
+    return funcPointer;
 }
 
 void Cell(XTensor input,XTensor hidden, XTensor &newHidden, DARTSCell &rnnCell)
@@ -59,21 +86,39 @@ void Cell(XTensor input,XTensor hidden, XTensor &newHidden, DARTSCell &rnnCell)
     XTensor ch;
     XTensor c;
     XTensor h;
-    //XTensor s[9];
     XTensor states;
-    for (int i = 0; i <  rnnCell.nodeNum - 1; ++i)
+    for (int i = 1; i <  rnnCell.nodeNum; ++i)
     {
-        preState = *stateList[i];
-        ch = Split(MMul(preState, *rnnCell.WList[i]), 1, 2);
-        c = SelectRange(ch, 0, 0, 1);
-        h = SelectRange(ch, 0, 1, 2);
-        SqueezeMe(c);
-        SqueezeMe(h);
-        /* some question */
-        XTensor *s = NewTensor2D(preState.dimSize[0], preState.dimSize[1], X_FLOAT, rnnCell.devID);
-        *s = Sigmoid(c) * (HardTanH(h) - preState);
-        *s = *s + preState;
-        stateList.Add(s);
+        for (int preIndex = 0; preIndex < i; ++preIndex)
+        {
+            preState = *stateList[preIndex];
+            ch = Split(MMul(preState, *rnnCell.WList[preIndex]), 1, 2);
+            c = SelectRange(ch, 0, 0, 1);
+            h = SelectRange(ch, 0, 1, 2);
+            SqueezeMe(c);
+            SqueezeMe(h);
+            XTensor *s = NewTensor2D(preState.dimSize[0], preState.dimSize[1], X_FLOAT, rnnCell.devID);
+
+            /* To be clear */
+            TensorList activeList;
+            char funName[4][10] = { "tanh","relu","sigmoid","identity" };
+            XTensor alpha = Softmax(rnnCell.alphaWeight, 1);
+            for (int activeIndex = 0; activeIndex < 4; ++activeIndex)
+            {
+                XTensor *activeH = NewTensor2D(h.dimSize[0], h.dimSize[1], X_FLOAT, rnnCell.devID);
+                XTensor(*activeFunc)(const XTensor &) = getActivation(funName[activeIndex]);
+                float alpha = rnnCell.alphaWeight.Get2D(preIndex, activeIndex);
+                *activeH = activeFunc(h);
+                *activeH = *activeH * alpha;
+                activeList.Add(activeH);
+                h = ReduceMean(Stack(activeList, 1), 1);
+            }
+            for (int activeIndex = 0; activeIndex < activeList.count; ++activeIndex)
+                delete activeList[activeIndex];
+            *s = Sigmoid(c) * (h - preState);
+            *s = *s + preState;
+            stateList.Add(s);
+        }
     }
     states = Stack(stateList, 2);
     /* free memory */

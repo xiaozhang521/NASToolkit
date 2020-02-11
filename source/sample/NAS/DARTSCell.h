@@ -14,6 +14,12 @@ namespace nas
 #define CheckErrors(x, msg) { if(!(x)) { fprintf(stderr, "Error! calling '%s' (%s line %d): %s\n", #x, __FILENAME__, __LINE__, msg);  _EXIT_(1); } }
 #define ShowErrors(msg) { { fprintf(stderr, "Error! (%s line %d): %s\n", __FILENAME__, __LINE__, msg); _EXIT_(1); } } 
 
+struct NodeType
+{
+    char funcName[20];
+    int preIndex;
+};
+
 struct DARTSCell
 {
     int hiddenSize;
@@ -22,6 +28,7 @@ struct DARTSCell
     int devID;
     XTensor W0;
     TensorList WList;
+    XTensor alphaWeight;
     DARTSCell() {};
     ~DARTSCell() {
         /* free memory */
