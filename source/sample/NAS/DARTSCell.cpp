@@ -66,7 +66,13 @@ void Cell(XTensor input,XTensor hidden, XTensor &newHidden, DARTSCell &rnnCell)
     XTensor ch0;
     XTensor c0;
     XTensor h0;
-    XTensor *s0 = NewTensor2D(hidden.dimSize[0], hidden.dimSize[1], X_FLOAT, rnnCell.devID);
+    //XTensor *states = NewTensor2D(hidden.dimSize[0], hidden.dimSize[1], X_FLOAT, rnnCell.devID);
+    XTensor states;
+
+    char funName[4][10] = { "tanh","relu","sigmoid","identity" };
+    XTensor alphaSoftmax;
+    alphaSoftmax = Softmax(rnnCell.alphaWeight, 1);
+    //XTensor *s0 = NewTensor2D(hidden.dimSize[0], hidden.dimSize[1], X_FLOAT, rnnCell.devID);
 
     /* compute init state*/
     xhConcat = Concatenate(input, hidden, 1);
@@ -76,55 +82,63 @@ void Cell(XTensor input,XTensor hidden, XTensor &newHidden, DARTSCell &rnnCell)
     SqueezeMe(c0);
     SqueezeMe(h0);
     /* some question */
-    *s0 = Sigmoid(c0) * (HardTanH(h0) - hidden);
-    *s0 = *s0 + hidden;
+    //*s0 = Sigmoid(c0) * (HardTanH(h0) - hidden);
+    //*s0 = *s0 + hidden;
+    states = Sigmoid(c0) * (HardTanH(h0) - hidden);
+    states = states + hidden;
     
     /* hidden sate of each node */
-    TensorList stateList;
-    stateList.Add(s0);
-    XTensor preState;
+    //TensorList stateList;
+    //stateList.Add(s0);
+    //XTensor preState;
+    states = Unsqueeze(states, 0, 1);
     XTensor ch;
     XTensor c;
     XTensor h;
-    XTensor states;
-    for (int i = 1; i <  rnnCell.nodeNum; ++i)
+    for (int i = 0; i <  rnnCell.nodeNum - 1; ++i)
     {
-        for (int preIndex = 0; preIndex < i; ++preIndex)
-        {
-            preState = *stateList[preIndex];
-            ch = Split(MMul(preState, *rnnCell.WList[preIndex]), 1, 2);
-            c = SelectRange(ch, 0, 0, 1);
-            h = SelectRange(ch, 0, 1, 2);
-            SqueezeMe(c);
-            SqueezeMe(h);
-            XTensor *s = NewTensor2D(preState.dimSize[0], preState.dimSize[1], X_FLOAT, rnnCell.devID);
+        //for (int preIndex = 0; preIndex < i; ++preIndex)
+        //{
+        //preState = *stateList[preIndex];
+        ch = Split(MMul(states, *rnnCell.WList[i]), 2, 2);
+        c = SelectRange(ch, 0, 0, 1);
+        h = SelectRange(ch, 0, 1, 2);
+        SqueezeMe(c, 0);
+        SqueezeMe(h, 0);
 
-            /* To be clear */
-            TensorList activeList;
-            char funName[4][10] = { "tanh","relu","sigmoid","identity" };
-            XTensor alpha = Softmax(rnnCell.alphaWeight, 1);
-            for (int activeIndex = 0; activeIndex < 4; ++activeIndex)
-            {
-                XTensor *activeH = NewTensor2D(h.dimSize[0], h.dimSize[1], X_FLOAT, rnnCell.devID);
-                XTensor(*activeFunc)(const XTensor &) = getActivation(funName[activeIndex]);
-                float alpha = rnnCell.alphaWeight.Get2D(preIndex, activeIndex);
-                *activeH = activeFunc(h);
-                *activeH = *activeH * alpha;
-                activeList.Add(activeH);
-                h = ReduceMean(Stack(activeList, 1), 1);
-            }
-            for (int activeIndex = 0; activeIndex < activeList.count; ++activeIndex)
-                delete activeList[activeIndex];
-            *s = Sigmoid(c) * (h - preState);
-            *s = *s + preState;
-            stateList.Add(s);
+        //XTensor *s = NewTensor2D(h.dimSize[0], h.dimSize[1], X_FLOAT, rnnCell.devID);
+
+        /* To be clear */
+        TensorList activeList;
+        for (int activeIndex = 0; activeIndex < 4; ++activeIndex)
+        {
+            XTensor *weightS = NewTensor2D(h.dimSize[0], h.dimSize[1], X_FLOAT, rnnCell.devID);
+            XTensor(*activeFunc)(const XTensor &) = getActivation(funName[activeIndex]);
+            XTensor unwight;
+            unwight = Sigmoid(c) * (activeFunc(h) - states);
+            unwight = unwight + states;
+            //float alpha = alphaSoftmax.Get2D(i, activeIndex);
+            float alpha = 0.5;
+            *weightS = unwight * alpha;
+            activeList.Add(weightS);
         }
+        XTensor s;
+        s = ReduceMean(Stack(activeList, 2), 2);
+        for (int activeIndex = 0; activeIndex < activeList.count; ++activeIndex)
+            delete activeList[activeIndex];
+
+        states = Concatenate(s, states, 0);
+        //delete s;
+        show(states);
+        //stateList.Add(s);
+        //}
     }
-    states = Stack(stateList, 2);
+    //states = Stack(stateList, 2);
     /* free memory */
-    for (int i = 0; i < stateList.count; ++i)
-        delete stateList[i];
-    newHidden = ReduceMean(states, 2);
+    //for (int i = 0; i < stateList.count; ++i)
+    //    delete stateList[i];
+    newHidden = ReduceMean(states, 0);
+    //delete states;
 
 }
 

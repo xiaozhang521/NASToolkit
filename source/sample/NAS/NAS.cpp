@@ -41,7 +41,7 @@ typedef std::vector<vec> vec2D;
 namespace nas{
 
 float minmax = -0.01;
-int batchSize = 100;
+int batchSize = 64;
 int bptt = 35;
 int nodeNum = 9;
 
