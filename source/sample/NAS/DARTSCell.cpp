@@ -58,6 +58,7 @@ XTensor (*getActivation(char name[]))(const XTensor &)
     return funcPointer;
 }
 
+
 void Cell(XTensor input,XTensor hidden, XTensor &newHidden, DARTSCell &rnnCell)
 {
     //XTensor newHidden(hidden.order, hidden.dimSize, hidden.dataType, 1.0F, hidden.devID, hidden.mem);
@@ -97,39 +98,38 @@ void Cell(XTensor input,XTensor hidden, XTensor &newHidden, DARTSCell &rnnCell)
     XTensor h;
     for (int i = 0; i <  rnnCell.nodeNum - 1; ++i)
     {
-        //for (int preIndex = 0; preIndex < i; ++preIndex)
-        //{
-        //preState = *stateList[preIndex];
         ch = Split(MMul(states, *rnnCell.WList[i]), 2, 2);
         c = SelectRange(ch, 0, 0, 1);
         h = SelectRange(ch, 0, 1, 2);
         SqueezeMe(c, 0);
         SqueezeMe(h, 0);
 
-        //XTensor *s = NewTensor2D(h.dimSize[0], h.dimSize[1], X_FLOAT, rnnCell.devID);
+        
 
         /* To be clear */
         TensorList activeList;
         for (int activeIndex = 0; activeIndex < 4; ++activeIndex)
         {
             XTensor *weightS = NewTensor2D(h.dimSize[0], h.dimSize[1], X_FLOAT, rnnCell.devID);
-            XTensor(*activeFunc)(const XTensor &) = getActivation(funName[activeIndex]);
-            XTensor unwight;
-            unwight = Sigmoid(c) * (activeFunc(h) - states);
-            unwight = unwight + states;
-            //float alpha = alphaSoftmax.Get2D(i, activeIndex);
-            float alpha = 0.5;
-            *weightS = unwight * alpha;
+            XTensor (*activeFunc)(const XTensor &) = getActivation(funName[activeIndex]);
+            XTensor unweight;
+            unweight = Sigmoid(c) * (activeFunc(h) - states);
+            unweight = unweight + states;
+            float alpha = alphaSoftmax.Get2D(i, activeIndex);
+            //float alpha = 0.5;
+            *weightS = unweight * alpha;
+            //ScaleAndShift(unweight, *weightS, alpha);
             activeList.Add(weightS);
         }
         XTensor s;
+        //XTensor s = NewTensor2D(h.dimSize[0], h.dimSize[1], X_FLOAT, rnnCell.devID);
         s = ReduceMean(Stack(activeList, 2), 2);
         for (int activeIndex = 0; activeIndex < activeList.count; ++activeIndex)
             delete activeList[activeIndex];
 
-        states = Concatenate(s, states, 0);
-        //delete s;
-        show(states);
+        //states = Concatenate(states, s, 0);
+        //_Concatenate(&states, &s, &states, 0);
+        //states = s;
         //stateList.Add(s);
         //}
     }
@@ -138,6 +138,7 @@ void Cell(XTensor input,XTensor hidden, XTensor &newHidden, DARTSCell &rnnCell)
     //for (int i = 0; i < stateList.count; ++i)
     //    delete stateList[i];
     newHidden = ReduceMean(states, 0);
+    show(newHidden);
     //delete states;
 
 }
@@ -170,3 +171,4 @@ void RNNForword(XTensor input, XTensor &output, DARTSCell &rnn)
 }
 
 };
+
