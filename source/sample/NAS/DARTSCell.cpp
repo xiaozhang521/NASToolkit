@@ -128,7 +128,10 @@ void Cell(XTensor input,XTensor hidden, XTensor &newHidden, DARTSCell &rnnCell)
             delete activeList[activeIndex];
 
         //states = Concatenate(states, s, 0);
-        //_Concatenate(&states, &s, &states, 0);
+        XTensor *test = NewTensor3D(states.dimSize[0] + s.dimSize[0], states.dimSize[1], states.dimSize[2], X_FLOAT, rnnCell.devID);        
+        _Concatenate(&states, &s, test, 0);
+        states = *test;
+        delete test;
         //states = s;
         //stateList.Add(s);
         //}
