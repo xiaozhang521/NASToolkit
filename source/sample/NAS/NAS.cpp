@@ -41,7 +41,7 @@ typedef std::vector<vec> vec2D;
 namespace nas{
 
 float minmax = -0.01;
-int batchSize = 64;
+int batchSize = 50;
 int bptt = 35;
 int nodeNum = 9;
 
@@ -196,6 +196,7 @@ void Forward(XTensor input,XTensor &output, RNNSearchModel &model)
 
 void Train(XTensor trainData, RNNSearchModel& model)
 {
+    XNet autoDiffer;
     for (int i = 0; i < trainData.dimSize[0] - 1 - 1; ++i)
     {
         XTensor batchTrain;
@@ -204,9 +205,10 @@ void Train(XTensor trainData, RNNSearchModel& model)
         XTensor lossTensor;
         XTensor gold;
         MakeTrainBatch(trainData, i, model.bpttLength, batchTrain, batchTarget);
-        Forward(batchTrain, output, model);
         gold = IndexToOnehot(batchTarget, model.vSize, 0);
-        lossTensor = CrossEntropy(output, gold, 2);
+        Forward(batchTrain, output, model);
+        lossTensor = CrossEntropy(output, gold);
+        autoDiffer.Backward(lossTensor);
         if ((i + 1) % 100 == 0)
             printf("%d / %d\n", i + 1, trainData.dimSize[0] - 1);
     }
