@@ -36,7 +36,7 @@ get the top-k items along a given dimension
 >> dim - the dimension along which the sorting is performed
 >> k - how many items returned after sorting
 */
-void _TopK(const XTensor * a, XTensor * b, XTensor * index, int dim, int k)
+void _TopK(const XTensor * a, XTensor * b, XTensor * index, int dim, int k, bool ordered)
 {
     dim = MODX(dim, a->order);
     
@@ -58,7 +58,7 @@ void _TopK(const XTensor * a, XTensor * b, XTensor * index, int dim, int k)
 
     if (a->devID >= 0 || b->devID >= 0) {
 #ifdef USE_CUDA
-        _CudaTopK(a, b, index, dim, k);
+        _CudaTopK(a, b, index, dim, k, ordered);
 #else
         ShowNTErrors("Plesae specify USE_CUDA and recompile the code!");
 #endif
@@ -117,14 +117,14 @@ get the top-k items along a given dimension
 >> dim - the dimension along which the sorting is performed
 >> k - how many items returned after sorting
 */
-void TopK(XTensor &a, XTensor &b, XTensor &index, int dim, int k)
+void TopK(XTensor &a, XTensor &b, XTensor &index, int dim, int k, bool ordered)
 {
     dim = MODX(dim, a.order);
     
     if(a.dimSize[dim] <= k)
         _Sort(&a, &b, &index, dim);
     else
-        _TopK(&a, &b, &index, dim, k);
+        _TopK(&a, &b, &index, dim, k, ordered);
 
     /* tensor connection */
     //TensorList list(2);

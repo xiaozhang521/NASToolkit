@@ -376,7 +376,7 @@ get the top-k items
 >> index - the output index array
 */
 template<class T> __global__
-void KernelTopK3(T * input, int stride, int strideNum, int blockNum, int k, T minValue, T * output, int * index)
+void KernelTopK3(T * input, int stride, int strideNum, int blockNum, int k, T minValue, T * output, int * index, bool ordered)
 {
     __shared__ CudaHeapNode<T> heapData[(SHARED_MEMORY_SIZE - 512 * sizeof(T)) / sizeof(CudaHeapNode<T>)];
     __shared__ T eachHeapMaxValue[512];
@@ -479,9 +479,22 @@ void KernelTopK3(T * input, int stride, int strideNum, int blockNum, int k, T mi
         int offset = stride * k * blockIndex + offsetInBlock;
         T * dOutput = output + offset;
         int * indexOutput = index + offset;
-        for (int q = 0; q < k; ++q){
-            dOutput[stride * q] = ansHeapData.items[q].value;
-            indexOutput[stride * q] = ansHeapData.items[q].index;
+        if (ordered)
+        {
+            for (int q = k - 1; q >= 0; q--) {
+                dOutput[stride * q] = ansHeapData.items[0].value;
+                indexOutput[stride * q] = ansHeapData.items[0].index;
+                ansHeapData.items[0] = ansHeapData.items[ansHeapData.count - 1];
+                ansHeapData.count--;
+                ansHeapData.Down(0);
+            }
+        }
+        else
+        {
+            for (int q = 0; q < k; ++q) {
+                dOutput[stride * q] = ansHeapData.items[q].value;
+                indexOutput[stride * q] = ansHeapData.items[q].index;
+            }
         }
     }
 }
@@ -804,7 +817,7 @@ get the top-k items along a given dimension
 >> dim - the dimension along which the sorting is performed
 >> k - how many items returned after sorting
 */
-void _CudaTopK(const XTensor * a, XTensor * b, XTensor * index, int dim, int k)
+void _CudaTopK(const XTensor * a, XTensor * b, XTensor * index, int dim, int k, bool ordered)
 {
     CheckNTErrors((a->unitSize == b->unitSize), "Unmatched input tensors!");
     CheckNTErrors((a->order == b->order), "Unmatched input tensors!");
@@ -846,7 +859,7 @@ void _CudaTopK(const XTensor * a, XTensor * b, XTensor * index, int dim, int k)
         if (a->dataType == DEFAULT_DTYPE) {
             KernelTopK3<DTYPE> <<<dim3(cudaGrids[0], cudaGrids[1]), dim3(cudaBlocks[0], cudaBlocks[1]) >>>
                                  ((DTYPE*)a->data, stride, strideNumA, blockNum, k, DTYPE_MIN,
-                                 (DTYPE*)b->data, (int*)index->data);
+                                 (DTYPE*)b->data, (int*)index->data, ordered);
         }
         else {
             ShowNTErrors("TODO!");
@@ -882,6 +895,10 @@ void _CudaTopK(const XTensor * a, XTensor * b, XTensor * index, int dim, int k)
 
             KernelTopKRadixSelect<DTYPE> <<<dim3(cudaGrids[0], cudaGrids[1]), dim3(cudaBlocks[0], cudaBlocks[1]) >>> (goutput, stride, strideNumA, blockNum, k, DTYPE_MIN, (DTYPE *)b->data, (int *)index->data, stride * strideNumA * blockNum);
             deconvert2floatV2 <<<dim3(cudaGrids[0], cudaGrids[1]), dim3(cudaBlocks[0], cudaBlocks[1]) >>> ((unsigned int *)a->data, (float *)goutput, stride, strideNumA, blockNum, strideNumA*blockNum*stride);
+            if (ordered)
+            {
+                ShowNTErrors("TODO!");
+            }
         }
     }
 
