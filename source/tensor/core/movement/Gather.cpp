@@ -43,12 +43,42 @@ void _Gather(const XTensor * s, XTensor * t, XTensor * srcIndex, int dim)
     CheckNTErrors((s && t), "Invalid tensors!");
     CheckNTErrors(s->devID == t->devID, "the data must be kept on the same device!");
     CheckNTErrors((t->unitSize == srcIndex->unitSize), "Unmatched tensors!");
+    CheckNTErrors((srcIndex->dataType == X_INT), "The index tensor should be INT type!");
+    CheckNTErrors((srcIndex->order == 1), "Temporarily support a vetor index gather!");
 #ifdef USE_CUDA
     if (s->devID >= 0 && t->devID >= 0) {
         _CudaGather(s, t, srcIndex, dim);
         return;
     }
 #endif
+    int stride = 1;
+    int indexSize = 1;
+    int blockNum = 1;
+    for (int i = dim + 1; i < s->order; ++i)
+    {
+        stride *= s->GetDim(i);
+    }
+    for (int i = 0; i < dim; ++i)
+    {
+        blockNum *= s->GetDim(i);
+    }
+    indexSize = srcIndex->unitNum;
+    int srcBlockSize = stride * s->GetDim(dim);
+    int tgtBlockSize = stride * indexSize;
+
+    DTYPE * sData = (DTYPE*)s->data;
+    DTYPE * tData = (DTYPE*)t->data;
+    int * sIndexData = (int*)srcIndex->data;
+    for (int blockIndex = 0; blockIndex < blockNum; ++blockIndex)
+    {
+        for (int i = 0; i < indexSize; i++) {
+            int sIndex = sIndexData[i] * stride + blockIndex * srcBlockSize;
+            int tIndex = i * stride + blockIndex * tgtBlockSize;
+            for (int j = 0; j < stride; j++)
+                //tData[i * stride + j] = sData[sIndex + j];
+                tData[tIndex + j] = sData[sIndex + j];
+        }
+    }
 }
 
 /*
@@ -105,7 +135,7 @@ XTensor Gather(XTensor &s, XTensor &index)
     int order = s.order;
     int * dimSize = new int[order];
 
-    for (int i = 0; i < s.order; i++) {
+   for (int i = 0; i < s.order; i++) {
         if (i == dim)
             dimSize[i] = index.unitNum;
         else
