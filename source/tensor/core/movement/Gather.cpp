@@ -44,7 +44,7 @@ void _Gather(const XTensor * s, XTensor * t, XTensor * srcIndex, int dim)
     CheckNTErrors(s->devID == t->devID, "the data must be kept on the same device!");
     CheckNTErrors((t->unitSize == srcIndex->unitSize), "Unmatched tensors!");
     CheckNTErrors((srcIndex->dataType == X_INT), "The index tensor should be INT type!");
-    CheckNTErrors((srcIndex->order == 1), "Temporarily support a vetor index gather!");
+    CheckNTErrors((srcIndex->order == s->order), "index's order should be the same with source's");
 #ifdef USE_CUDA
     if (s->devID >= 0 && t->devID >= 0) {
         _CudaGather(s, t, srcIndex, dim);
@@ -52,7 +52,6 @@ void _Gather(const XTensor * s, XTensor * t, XTensor * srcIndex, int dim)
     }
 #endif
     int stride = 1;
-    int indexSize = 1;
     int blockNum = 1;
     for (int i = dim + 1; i < s->order; ++i)
     {
@@ -62,21 +61,22 @@ void _Gather(const XTensor * s, XTensor * t, XTensor * srcIndex, int dim)
     {
         blockNum *= s->GetDim(i);
     }
-    indexSize = srcIndex->unitNum;
-    int srcBlockSize = stride * s->GetDim(dim);
-    int tgtBlockSize = stride * indexSize;
+    int indexStrideNum = srcIndex->GetDim(dim);
+    int srcStrideNum = stride * s->GetDim(dim);
+    int tgtBlockSize = stride * indexStrideNum;
 
     DTYPE * sData = (DTYPE*)s->data;
     DTYPE * tData = (DTYPE*)t->data;
     int * sIndexData = (int*)srcIndex->data;
     for (int blockIndex = 0; blockIndex < blockNum; ++blockIndex)
     {
-        for (int i = 0; i < indexSize; i++) {
-            int sIndex = sIndexData[i] * stride + blockIndex * srcBlockSize;
+        for (int i = 0; i < indexStrideNum; i++) {
+            //printf("%d\n", sIndexData[i * stride + blockIndex * indexStrideNum]);
+            int sIndex = sIndexData[i * stride + blockIndex * indexStrideNum] * stride + blockIndex * srcStrideNum;
             int tIndex = i * stride + blockIndex * tgtBlockSize;
-            for (int j = 0; j < stride; j++)
+            //for (int j = 0; j < stride; j++)
                 //tData[i * stride + j] = sData[sIndex + j];
-                tData[tIndex + j] = sData[sIndex + j];
+            tData[tIndex] = sData[sIndex];
         }
     }
 }
