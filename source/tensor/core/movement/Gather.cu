@@ -90,7 +90,7 @@ void KernelGather(DTYPE * sData, DTYPE * tData, int * sIndex, int stride, int st
     for (int i = idx * stride + stride * strideNum * blockIndex + offsetInBlock;
         i < stride * strideNum * blockIndex + offsetInBlock + stride * strideNum && i < size;
         i += stride * blockDim.x) {
-        tData[i] = sData[idy * stride * srcStrideNum + sIndex[i]];
+        tData[i] = sData[sIndex[i] * stride + stride * srcStrideNum * blockIndex + offsetInBlock];
     }
 }
 

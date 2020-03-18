@@ -71,12 +71,12 @@ void _Gather(const XTensor * s, XTensor * t, XTensor * srcIndex, int dim)
     for (int blockIndex = 0; blockIndex < blockNum; ++blockIndex)
     {
         for (int i = 0; i < indexStrideNum; i++) {
-            //printf("%d\n", sIndexData[i * stride + blockIndex * indexStrideNum]);
-            int sIndex = sIndexData[i * stride + blockIndex * indexStrideNum] * stride + blockIndex * srcStrideNum;
-            int tIndex = i * stride + blockIndex * tgtBlockSize;
-            //for (int j = 0; j < stride; j++)
-                //tData[i * stride + j] = sData[sIndex + j];
-            tData[tIndex] = sData[sIndex];
+            for (int j = 0; j < stride; j++)
+            {
+                int sIndex = sIndexData[i * stride + blockIndex * indexStrideNum + j] * stride + blockIndex * srcStrideNum + j;
+                int tIndex = i * stride + blockIndex * tgtBlockSize + j;
+                tData[tIndex] = sData[sIndex];
+            }
         }
     }
 }
