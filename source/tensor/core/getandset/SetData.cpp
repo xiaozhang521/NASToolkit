@@ -536,31 +536,39 @@ void _SetDataRange(XTensor * tensor, DTYPE lower, DTYPE upper, DTYPE step)
 {
     CheckNTErrors((tensor->order == 1), "Tensor must be 1 dimension!");
 
-    /* compute the true length according to the (start, end, step) */
-    DTYPE size = fabs(upper - lower);
-    int num = ceil(size / fabs(step));
-    CheckNTErrors((tensor->unitNum == num), "Unit number of the tensor is not matched.");
+    if (tensor->devID < 0) {
+        /* compute the true length according to the (start, end, step) */
+        DTYPE size = fabs(upper - lower);
+        int num = ceil(size / fabs(step));
+        CheckNTErrors((tensor->unitNum == num), "Unit number of the tensor is not matched.");
 
-    /* init a integer array to store the sequence */
-    void * data = NULL;
-    if (tensor->dataType == X_INT) {
-        data = new int[num];
-        for (int i = 0; i < num; i++)
-            *((int*)data + i) = lower + i * step;
-    }
-    else if (tensor->dataType == X_FLOAT) {
-        data = new float[num];
-        for (int i = 0; i < num; i++)
-            *((float*)data + i) = lower + i * step;
-    }
-    else {
-        ShowNTErrors("TODO!");
-    }
+        /* init a integer array to store the sequence */
+        void * data = NULL;
+        if (tensor->dataType == X_INT) {
+            data = new int[num];
+            for (int i = 0; i < num; i++)
+                *((int*)data + i) = lower + i * step;
+        }
+        else if (tensor->dataType == X_FLOAT) {
+            data = new float[num];
+            for (int i = 0; i < num; i++)
+                *((float*)data + i) = lower + i * step;
+        }
+        else {
+            ShowNTErrors("TODO!");
+        }
 
-    /* set the data from the array */
-    tensor->SetData(data, num);
+        /* set the data from the array */
+        tensor->SetData(data, num);
 
-    delete[] data;
+        delete[] data;
+    }
+    else
+    {
+#ifdef USE_CUDA
+        _CudaSetDataRange(tensor, lower, upper, step);
+#endif // USE_CUDE
+    }
 }
 
 /* 

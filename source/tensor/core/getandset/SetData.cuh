@@ -57,6 +57,8 @@ void _CudaSetDataLowTri(XTensor * tensor, DTYPE p, int shift);
 /* generate data items with a uniform distribution in [lower, upper] */
 void _CudaSetDataRand(const XTensor * tensor, DTYPE lower, DTYPE upper);
 
+void _CudaSetDataRange(const XTensor * tensor, DTYPE lower, DTYPE upper, DTYPE step);
+
 /* generate data items with a uniform distribution in [lower, upper] and set
    the item to a pre-defined value if the item >= p, set the item to 0 otherwise */
 void _CudaSetDataRandP(const XTensor * tensor, DTYPE lower, DTYPE upper, DTYPE p, DTYPE value);

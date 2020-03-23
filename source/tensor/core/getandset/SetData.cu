@@ -281,6 +281,25 @@ void KernelSetDataRandDouble(double * d, int size, DTYPE lower, DTYPE variance)
     }
 }
 
+template<class T>  __global__
+void KernelSetDataRange(T * data, T lower, T upper, T step, int stride, int strideNum, int blockNum)
+{
+    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    int idy = blockDim.y * blockIdx.y + threadIdx.y;
+    int blockIndex = idy / stride;
+    int offsetInBlock = idy % stride;
+
+    int size = stride * strideNum * blockNum;
+
+#pragma unroll
+    for (int i = idx * stride + stride * strideNum * blockIndex + offsetInBlock;
+        i < stride * strideNum * blockIndex + offsetInBlock + stride * strideNum && i < size;
+        i += stride * blockDim.x) {
+        data[i] = lower + i * step;
+    }
+}
+
+
 /*
 set data items to a pre-defined value if its value >= p, set it to 0 otherwise
 >> d - pointer to the data array
@@ -584,6 +603,36 @@ void _CudaSetDataRand(const XTensor * tensor, DTYPE lower, DTYPE upper)
 
     BacktoCudaDev(tensor->devID, devIDBackup);
 }
+
+void _CudaSetDataRange(const XTensor * tensor, DTYPE lower, DTYPE upper, DTYPE step)
+{
+    int dim = tensor->order - 1;
+    int devID = tensor->devID;
+    int stride = 1;
+    int blockNum = 1;
+    int strideNum = tensor->dimSize[dim];
+    for (int i = 0; i < dim; i++)
+        blockNum *= tensor->dimSize[i];
+    for (int i = dim + 1; i < tensor->order; i++)
+        stride *= tensor->dimSize[i];
+    int cudaGrids[3];
+    int cudaBlocks[3];
+    GDevs.GetCudaThread2D(devID, max(32, strideNum), stride*blockNum, MAX_INT, cudaGrids, cudaBlocks);
+    if (tensor->dataType == X_FLOAT)
+    {
+        //printf("%d %d %d %d\n", cudaGrids[0], cudaGrids[1], cudaBlocks[0], cudaBlocks[1]);
+        KernelSetDataRange<DTYPE> << <dim3(cudaGrids[0], cudaGrids[1]), dim3(cudaBlocks[0], cudaBlocks[1]) >> > ((DTYPE *)tensor->data, lower, upper, step, stride, strideNum, blockNum);
+    }
+    else if(tensor->dataType == X_INT)
+    {
+        KernelSetDataRange<int> << <dim3(cudaGrids[0], cudaGrids[1]), dim3(cudaBlocks[0], cudaBlocks[1]) >> > ((int *)tensor->data, (int)lower, (int)upper, (int)step, stride, strideNum, blockNum);
+    }
+    else
+    {
+        ShowNTErrors("TODO!");
+    }
+}
+
 
 /* 
 generate data items with a uniform distribution in [lower, upper] and set
