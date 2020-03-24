@@ -534,34 +534,40 @@ void _SetDataRand(XTensor * tensor, DTYPE lower, DTYPE upper)
 */
 void _SetDataRange(XTensor * tensor, DTYPE lower, DTYPE upper, DTYPE step)
 {
-    CheckNTErrors((tensor->order == 1), "Tensor must be 1 dimension!");
+    //CheckNTErrors((tensor->order == 1), "Tensor must be 1 dimension!");
 
     if (tensor->devID < 0) {
         /* compute the true length according to the (start, end, step) */
+        int dim = tensor->order - 1;
         DTYPE size = fabs(upper - lower);
         int num = ceil(size / fabs(step));
-        CheckNTErrors((tensor->unitNum == num), "Unit number of the tensor is not matched.");
+        CheckNTErrors((tensor->dimSize[dim] == num), "Unit number of the tensor is not matched.");
 
+        /*  */
+        int blockSize = 1;
+        for (int i = 0; i < dim; ++i)
+        {
+            blockSize *= tensor->dimSize[i];
+        }
         /* init a integer array to store the sequence */
-        void * data = NULL;
+        void * tData = tensor->data;
         if (tensor->dataType == X_INT) {
-            data = new int[num];
-            for (int i = 0; i < num; i++)
-                *((int*)data + i) = lower + i * step;
+            for (int i = 0; i < blockSize; ++i)
+            {
+                for (int j = 0; j < num; j++)
+                    *((int*)tData + i * num + j) = lower + j * step;
+            }
         }
         else if (tensor->dataType == X_FLOAT) {
-            data = new float[num];
-            for (int i = 0; i < num; i++)
-                *((float*)data + i) = lower + i * step;
+            for (int i = 0; i < blockSize; ++i)
+            {
+                for (int j = 0; j < num; j++)
+                    *((float*)tData + i * num + j) = lower + j * step;
+            }
         }
         else {
             ShowNTErrors("TODO!");
         }
-
-        /* set the data from the array */
-        tensor->SetData(data, num);
-
-        delete[] data;
     }
     else
     {

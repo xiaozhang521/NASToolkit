@@ -294,8 +294,8 @@ void KernelSetDataRange(T * data, T lower, T upper, T step, int stride, int stri
 #pragma unroll
     for (int i = idx * stride + stride * strideNum * blockIndex + offsetInBlock;
         i < stride * strideNum * blockIndex + offsetInBlock + stride * strideNum && i < size;
-        i += stride * blockDim.x) {
-        data[i] = lower + i * step;
+        i += stride * blockDim.x * gridDim.x) {
+        data[i] = lower + idx * step;
     }
 }
 
@@ -606,7 +606,12 @@ void _CudaSetDataRand(const XTensor * tensor, DTYPE lower, DTYPE upper)
 
 void _CudaSetDataRange(const XTensor * tensor, DTYPE lower, DTYPE upper, DTYPE step)
 {
+    
     int dim = tensor->order - 1;
+    DTYPE size = fabs(upper - lower);
+    int num = ceil(size / fabs(step));
+    CheckNTErrors((tensor->dimSize[dim] == num), "Unit number of the tensor is not matched.");
+
     int devID = tensor->devID;
     int stride = 1;
     int blockNum = 1;
@@ -622,6 +627,7 @@ void _CudaSetDataRange(const XTensor * tensor, DTYPE lower, DTYPE upper, DTYPE s
     {
         //printf("%d %d %d %d\n", cudaGrids[0], cudaGrids[1], cudaBlocks[0], cudaBlocks[1]);
         KernelSetDataRange<DTYPE> << <dim3(cudaGrids[0], cudaGrids[1]), dim3(cudaBlocks[0], cudaBlocks[1]) >> > ((DTYPE *)tensor->data, lower, upper, step, stride, strideNum, blockNum);
+
     }
     else if(tensor->dataType == X_INT)
     {
