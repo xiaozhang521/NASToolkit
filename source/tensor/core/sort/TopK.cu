@@ -548,7 +548,7 @@ void convert2uintV2(float* input, unsigned int *output, int stride, int strideNu
 #pragma unroll
     for (int i = idx * stride + stride * strideNum * blockIndex + offsetInBlock;
         i < stride * strideNum * blockIndex + offsetInBlock + stride * strideNum && i < size;
-        i += stride * blockDim.x){
+        i += stride * blockDim.x * gridDim.x){
         output[i] = convert(input[i]);
     }
 }
