@@ -554,14 +554,7 @@ void _funcName(const XTensor * input, XTensor * output, int dim)                
     blockSize = stride * strideNum;                                                                                                           \
                                                                                                                                               \
     int devID = input->devID;                                                                                                                 \
-    XMem * mem = input->mem;                                                                                                                  \
                                                                                                                                               \
-    GDevs.GetCudaThread2D(devID, strideNum, stride * blockNum, MAX_INT, cudaGridSize, cudaBlockSize);                                         \
-                                                                                                                                              \
-    int bufSize = sizeof(DTYPE) * cudaGridSize[0] * stride * blockNum * 2;                                                                    \
-    DTYPE * buf = mem != NULL ? (DTYPE*)mem->AllocBuf(mem->devID, bufSize) : (DTYPE*)XMemAlloc(input->devID, bufSize);                        \
-    DTYPE * buf1 = buf;                                                                                                                       \
-    DTYPE * buf2 = buf + cudaGridSize[0] * stride * blockNum;                                                                                 \
                                                                                                                                               \
     int devIDBackup;                                                                                                                          \
     ProtectCudaDev(input->devID, devIDBackup);                                                                                                \
@@ -569,7 +562,7 @@ void _funcName(const XTensor * input, XTensor * output, int dim)                
     if (stride == 1 && blockNum >= 10) {                                                                                                      \
         dim3 grids;                                                                                                                           \
         dim3 blocks;                                                                                                                          \
-        continuousStorageThreadAllocation(grids, blocks, (long long)blockNum, strideNum);                                                     \
+        continuousStorageThreadAllocation(grids, blocks, (long long)blockNum, strideNum);printf("%d %d %d %d\n", grids.x, grids.y, blocks.x, blocks.y);                                                     \
         if (blocks.y >= 128) {                                                                                                                \
             _reduceFunc1 <<<grids, blocks >>> ((DTYPE *)input->data, (DTYPE*)output->data, stride, strideNum, grids.y, blockSize, blockNum);  \
         }                                                                                                                                     \
@@ -578,8 +571,14 @@ void _funcName(const XTensor * input, XTensor * output, int dim)                
             else blockNum = blockNum / 4;                                                                                                     \
             _reduceFunc2 <<<blockNum, 128 >>> ((DTYPE *)input->data, (DTYPE*)output->data, strideNum, blockNum);                              \
         }                                                                                                                                     \
-    }                                                                                                                                         \
+    }                                                                                               \
     else {                                                                                                                                    \
+        XMem * mem = input->mem;                                                                                                              \
+        GDevs.GetCudaThread2D(devID, strideNum, stride * blockNum, MAX_INT, cudaGridSize, cudaBlockSize);                                     \
+        int bufSize = input->unitSize * cudaGridSize[0] * stride * blockNum * 2;                                                              \
+        DTYPE * buf  = mem != NULL ? (DTYPE*)mem->AllocBuf(mem->devID, bufSize) : (DTYPE*)XMemAlloc(devID, bufSize);                          \
+        DTYPE * buf1 = buf;                                                                                                                   \
+        DTYPE * buf2 = buf + cudaGridSize[0] * stride * blockNum;                                                                             \
         do {                                                                                                                                  \
             if (input->dataType == DEFAULT_DTYPE) {                                                                                           \
                 DTYPE * iData = NULL;                                                                                                         \
@@ -666,7 +665,7 @@ void _funcName(const XTensor * input, XTensor * output, int dim)                
                     dim3 blocks(cudaGridSize[1], cudaGridSize[0]), threads(cudaBlockSize[1], cudaBlockSize[0]);                               \
                     if (cudaGridSize[0] == 1)                                                                                                 \
                         oData = (__half*)output->data;                                                                                        \
-                    KernelReduceMax <<<blocks, threads>>> (iData, oData, stride, strideNum, blocks.y, blockSize, blockNum);                      \
+                    KernelReduceMax <<<blocks, threads>>> (iData, oData, stride, strideNum, blocks.y, blockSize, blockNum);                   \
                 }                                                                                                                             \
                 else if (strideNum < 128) {                                                                                                   \
                     GDevs.GetCudaThread2D(devID, MAX(strideNum / 2 + 1, 64), stride * blockNum, MAX_INT, cudaGridSize, cudaBlockSize);        \
@@ -674,7 +673,7 @@ void _funcName(const XTensor * input, XTensor * output, int dim)                
                     if (cudaGridSize[0] == 1)                                                                                                 \
                         oData = (__half*)output->data;                                                                                        \
                     CheckNTErrors(cudaBlockSize[0] >= 64, "Incorrect thread number when calling the cuda kernel!");                           \
-                    KernelReduceMaxFast<64> <<<blocks, threads>>> (iData, oData, stride, strideNum, blocks.y, blockSize, blockNum);                   \
+                    KernelReduceMaxFast<64> <<<blocks, threads>>> (iData, oData, stride, strideNum, blocks.y, blockSize, blockNum);           \
                 }                                                                                                                             \
                 else if (strideNum < 256) {                                                                                                   \
                     GDevs.GetCudaThread2D(devID, MAX(strideNum / 2 + 1, 128), stride * blockNum, MAX_INT, cudaGridSize, cudaBlockSize);       \
@@ -682,7 +681,7 @@ void _funcName(const XTensor * input, XTensor * output, int dim)                
                     if (cudaGridSize[0] == 1)                                                                                                 \
                         oData = (__half*)output->data;                                                                                        \
                     CheckNTErrors(cudaBlockSize[0] >= 128, "Incorrect thread number when calling the cuda kernel!");                          \
-                    KernelReduceMaxFast<128> <<<blocks, threads>>> (iData, oData, stride, strideNum, blocks.y, blockSize, blockNum);                  \
+                    KernelReduceMaxFast<128> <<<blocks, threads>>> (iData, oData, stride, strideNum, blocks.y, blockSize, blockNum);          \
                 }                                                                                                                             \
                 else if (strideNum < 512) {                                                                                                   \
                     GDevs.GetCudaThread2D(devID, MAX(strideNum / 2 + 1, 256), stride * blockNum, MAX_INT, cudaGridSize, cudaBlockSize);       \
@@ -690,7 +689,7 @@ void _funcName(const XTensor * input, XTensor * output, int dim)                
                     if (cudaGridSize[0] == 1)                                                                                                 \
                         oData = (__half*)output->data;                                                                                        \
                     CheckNTErrors(cudaBlockSize[0] >= 256, "Incorrect thread number when calling the cuda kernel!");                          \
-                    KernelReduceMaxFast<256> <<<blocks, threads>>> (iData, oData, stride, strideNum, blocks.y, blockSize, blockNum);                  \
+                    KernelReduceMaxFast<256> <<<blocks, threads>>> (iData, oData, stride, strideNum, blocks.y, blockSize, blockNum);          \
                 }                                                                                                                             \
                 else {                                                                                                                        \
                     GDevs.GetCudaThread2D(devID, MAX(strideNum / 2 + 1, 512), stride * blockNum, MAX_INT, cudaGridSize, cudaBlockSize);       \
@@ -698,7 +697,7 @@ void _funcName(const XTensor * input, XTensor * output, int dim)                
                     if (cudaGridSize[0] == 1)                                                                                                 \
                         oData = (__half*)output->data;                                                                                        \
                     CheckNTErrors(cudaBlockSize[0] >= 512, "Incorrect thread number when calling the cuda kernel!");                          \
-                    KernelReduceMaxFast<512> <<<blocks, threads>>> (iData, oData, stride, strideNum, blocks.y, blockSize, blockNum);                  \
+                    KernelReduceMaxFast<512> <<<blocks, threads>>> (iData, oData, stride, strideNum, blocks.y, blockSize, blockNum);          \
                 }                                                                                                                             \
             }                                                                                                                                 \
                                                                                                                                               \
@@ -708,14 +707,15 @@ void _funcName(const XTensor * input, XTensor * output, int dim)                
             iter++;                                                                                                                           \
                                                                                                                                               \
         } while (strideNum > 1);                                                                                                              \
+                                                                                                                                              \
+                                                                                                                                              \
+                                                                                                                                              \
+        if (mem != NULL)                                                                                                                      \
+            mem->ReleaseBuf(mem->devID, bufSize);                                                                                             \
+        else                                                                                                                                  \
+            XMemFree(input->devID, buf);                                                                                                      \
     }                                                                                                                                         \
-                                                                                                                                              \
     BacktoCudaDev(input->devID, devIDBackup);                                                                                                 \
-                                                                                                                                              \
-    if (mem != NULL)                                                                                                                          \
-        mem->ReleaseBuf(mem->devID, bufSize);                                                                                                 \
-    else                                                                                                                                      \
-        XMemFree(input->devID, buf);                                                                                                          \
 }
 
 _CUDAREDUCE(_CudaReduceMax, KernelReduceMaxOp, KernelReduceMaxOpLessBlocks, KernelReduceMax, KernelReduceMaxFast)
